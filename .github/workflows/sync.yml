@@ -13,69 +13,69 @@ jobs:
         run: curl -L -o blocked.csv "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDGQ4yd3EjHMmMvFDUNRVET2LSRrg33UL5dgNnB0VKZkYH5KTT3NxplW0LjU2u1nFWdIR1hjiza7vb/pub?output=csv"
 
       - name: Convert CSV to bulk JSON
-  run: |
-    node - <<'EOF'
-    import fs from 'fs';
+        run: |
+          node - <<'EOF'
+          import fs from 'fs';
 
-    const csv = fs.readFileSync('blocked.csv', 'utf8')
-      .split('\n')
-      .map(l => l.trim())
-      .filter(l => l.length > 0);
+          const csv = fs.readFileSync('blocked.csv', 'utf8')
+            .split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 0);
 
-    // Парсим заголовок, чтобы знать, какие колонки использовать
-    const headers = csv.shift().split(',').map(h => h.trim().toLowerCase());
+          // Парсим заголовок, чтобы знать, какие колонки использовать
+          const headers = csv.shift().split(',').map(h => h.trim().toLowerCase());
 
-    // Список колонок, где могут быть телефоны
-    const phoneCols = [
-      'рабочий телефон',
-      'мобильный телефон',
-      'номер факса',
-      'домашний телефон',
-      'номер пейджера',
-      'телефон для рассылок',
-      'другой телефон'
-    ];
+          // Список колонок, где могут быть телефоны
+          const phoneCols = [
+            'рабочий телефон',
+            'мобильный телефон',
+            'номер факса',
+            'домашний телефон',
+            'номер пейджера',
+            'телефон для рассылок',
+            'другой телефон'
+          ];
 
-    // Находим индексы нужных колонок
-    const phoneIndexes = headers
-      .map((h, i) => phoneCols.includes(h) ? i : -1)
-      .filter(i => i >= 0);
+          // Находим индексы нужных колонок
+          const phoneIndexes = headers
+            .map((h, i) => phoneCols.includes(h) ? i : -1)
+            .filter(i => i >= 0);
 
-    const numbers = new Set();
+          const numbers = new Set();
 
-    for (const line of csv) {
-      const parts = line.split(',');
-      for (const i of phoneIndexes) {
-        let raw = (parts[i] || '').trim();
-        if (!raw) continue;
+          for (const line of csv) {
+            const parts = line.split(',');
+            for (const i of phoneIndexes) {
+              let raw = (parts[i] || '').trim();
+              if (!raw) continue;
 
-        // Очистка номера
-        let num = raw
-          .replace(/[^\d+]/g, '')   // оставляем только цифры и +
-          .replace(/^8(\d{10})$/, '+7$1') // заменяем 8 на +7, если номер российский
-          .replace(/^7(\d{10})$/, '+7$1'); // добавляем +, если не хватает
+              // Очистка номера
+              let num = raw
+                .replace(/[^\d+]/g, '')   // оставляем только цифры и +
+                .replace(/^8(\d{10})$/, '+7$1') // заменяем 8 на +7, если номер российский
+                .replace(/^7(\d{10})$/, '+7$1'); // добавляем +, если не хватает
 
-        if (!num.startsWith('+') && /^\d{10,15}$/.test(num)) {
-          num = '+' + num;
-        }
+              if (!num.startsWith('+') && /^\d{10,15}$/.test(num)) {
+                num = '+' + num;
+              }
 
-        // фильтрация очевидных ошибок
-        if (/^\+\d{7,15}$/.test(num)) {
-          numbers.add(num);
-        }
-      }
-    }
+              // фильтрация очевидных ошибок
+              if (/^\+\d{7,15}$/.test(num)) {
+                numbers.add(num);
+              }
+            }
+          }
 
-    const data = Array.from(numbers).map(num => ({
-      key: num,
-      value: 'true'
-    }));
+          const data = Array.from(numbers).map(num => ({
+            key: num,
+            value: 'true'
+          }));
 
-    fs.writeFileSync('bulk.json', JSON.stringify(data, null, 2));
+          fs.writeFileSync('bulk.json', JSON.stringify(data, null, 2));
 
-    console.log(`✅ Сконвертировано ${data.length} номеров`);
-    EOF
-    
+          console.log(`✅ Сконвертировано ${data.length} номеров`);
+          EOF
+
       - name: Upload to Cloudflare KV
         env:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
