@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download CSV from Google Sheets
-        run: curl -L -o blocked.csv "https://docs.google.com/spreadsheets/d/e/1rtitLEFpHHh4QMtzbFq8FIiJV1QXlMKnBR92wNX1f34/pub?output=csv"
+        run: curl -L -o blocked.csv "https://docs.google.com/spreadsheets/d/e/2PACX-1vQDGQ4yd3EjHMmMvFDUNRVET2LSRrg33UL5dgNnB0VKZkYH5KTT3NxplW0LjU2u1nFWdIR1hjiza7vb/pub?output=csv"
 
       - name: Convert CSV to bulk JSON
   run: |
