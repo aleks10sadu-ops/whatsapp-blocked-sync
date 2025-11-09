@@ -1,0 +1,36 @@
+name: Sync Blocked Numbers from Google Sheets
+
+on:
+  schedule:
+    - cron: "0 * * * *" # каждый час
+  workflow_dispatch: # можно запускать вручную
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download CSV from Google Sheets
+        run: curl -L -o blocked.csv "https://docs.google.com/spreadsheets/d/e/<ID>/pub?output=csv"
+
+      - name: Convert CSV to bulk JSON
+        run: |
+          node -e "
+          import fs from 'fs';
+          const csv = fs.readFileSync('blocked.csv', 'utf8').split('\n').filter(l => l.trim());
+          const data = csv.map(l => {
+            const [phone] = l.split(',');
+            return { key: phone.trim(), value: 'true' };
+          });
+          fs.writeFileSync('bulk.json', JSON.stringify(data, null, 2));
+          "
+
+      - name: Upload to Cloudflare KV
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_NAMESPACE_ID: ${{ secrets.CF_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${CF_NAMESPACE_ID}/bulk" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data @bulk.json
